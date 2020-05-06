@@ -67,18 +67,26 @@ function doCommand(x) {
         if (x[0] == validCommands[i][0]) {
             if (x.length != validCommands[i][2] + 1) {
                 updateOut("Incorrect usage! Try: " + validCommands[i][4]);
+                checkThings();
+                return;
             } else {
                 eval(validCommands[i][3]);
+                checkThings();
+                return;
                 //console.log("Command!")
             }
         } else { // if it isnt the first command, check the other available commands
             for (var j = 0; j < validCommands[i][1].length; j++) {
                 if (x[0] == validCommands[i][1][j]) { // if x is another available command,
                     eval(validCommands[i][3]); // run the code
+                    checkThings();
+                    return;
                 }
             }
         }
     }
+
+    updateOut("Invalid command!");
 }
 
 
@@ -87,8 +95,6 @@ function updateOut(string) {
     checkInv();
     OUTPUT.innerHTML = OUTPUT.innerHTML + "</br>" + "> " + string; + "</br></br></br>";
     OUTPUT.scrollTop = OUTPUT.scrollHeight;
-
-    checkThings();
 
 }
 
@@ -159,6 +165,8 @@ function go(x) {
             }
         }
     }
+
+    checkThings();
 }
 
 
@@ -177,6 +185,7 @@ function open(containerID) {
             }
         }
     }
+    checkThings();
 };
 
 function take(object, container) {
@@ -226,7 +235,7 @@ function take(object, container) {
                                         // should also check if the object is 'top' of the container
                                         console.log(Container.contains[Container.contains.length - 1], Object)
                                         if (Container.contains[Container.contains.length - 1] == Object && Container.isOpen == true) {
-                                            Container.contains.splice(l, 1);
+                                            Container.contains.splice(Container.contains.length-1, 1);
                                             addToInv(Object);
                                             ringInInv = true;
                                         } else {
@@ -249,8 +258,7 @@ function take(object, container) {
                             if (Container.contains[l] == Object && Container.isOpen == true) {
                                 Container.contains.splice(l, 1);
                                 addToInv(Object);
-                            } else {
-                                updateOut("This container doesn't have that item!")
+                                return;
                             }
                         }
                     }
@@ -258,6 +266,7 @@ function take(object, container) {
             }
         }
     }
+    checkThings();
 }
 
 function addToInv(x) {
@@ -268,6 +277,7 @@ function addToInv(x) {
     updateOut(toSend);
     allInInv.push(x);
     checkInv();
+    checkThings();
 }
 
 function checkInv() {
@@ -313,6 +323,7 @@ function store(object, container) {
             }
         }
     }
+    checkThings();
 }
 
 function checkPedestals(object, pedestal, x) {
@@ -388,11 +399,13 @@ var pedestalsDone = false;
 var teaDone = false;
 
 function checkThings() {
-
+    console.log("Checking things!");
     if (allPedestals[2].contains.length == 4 && pedestalsDone == false) {
         // then pedestals done!
+        console.log("Pedestals Done!")
         updateOut("You hear a click from the door to the East")
         pedestalsDone = true;
+        return;
     }
 
     var teacup = allObjects[2];
@@ -401,6 +414,7 @@ function checkThings() {
         // then tea is done
         updateOut("");
         teaDone = true;
+        return;
     }
 }
 
@@ -423,6 +437,7 @@ function use(objectID1, objectID2) {
                         // check through the objects commands to see if the 2nd object is valid
                         console.log("b", object1.Commands.use)
                         if (object1.Commands.use[k].objectID.toLowerCase() == objectID2 || object1.Commands.use[k].objectName.toLowerCase() == objectID2) {
+                            checkThings();
                             return (allInInv[i].Commands.useCode());
                         } 
                     }
@@ -668,7 +683,7 @@ There is a door to the <font id="clue">North</font>.
 var room2 = new Room(
 
     "room2",
-    "Inside this room are 3 pedestals, a Western Pedestal, a Central Pedestal, and an Eastern Pedestal. There is a piece of paper on the floor.",
+    "Inside this room are 3 pedestals, a <b id='clue'>Western Pedestal</b>, a <b id='clue'>Central Pedestal</b>, and an <b id='clue'>Eastern Pedestal</b>. There is a piece of <b id='clue'>paper</b> on the floor.",
     false,
     [["room1", "South"], ["room4", "North"]]
     ,
