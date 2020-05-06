@@ -3,6 +3,8 @@ var OUTPUT = document.getElementById("OUT")
 var INVENTORY = document.getElementById("INV")
 var allInInv = [];
 
+var hasRing = false;
+
 var validCommands = [
 
     ["use", ["use", "combine"], 2, "use(x[1], x[2]);", "use {object1} {object2}"],
@@ -11,6 +13,7 @@ var validCommands = [
     ["close", ["close", "shut"], 1, "close(x[1]);", "close {container}"],
     // take [ALLOWED PHRASE], AMOUNT OF PARAMETERSS
     ["take", ["take", "grab", "get"], 2, "take(x[1], x[2])", "take {object} {container}"],
+    ["store", ["put","drop", "leave"], 2, "store(x[1], x[2])", "store {object} {container}"],
     ["examine", ["look"], 1, "examine(x[1]);", "examine {anything}"],
     ["clear", [null], 0, "clearOut();", "clear"],
     ["go",["move", "travel"], 1, "go(x[1]);", "go {direction}"],
@@ -21,8 +24,11 @@ var validCommands = [
 var allRooms = [];
 var allObjects = [];
 var allContainers = [];
-var allInputs = ["use teabag teacup",  "take sugar cupboard","open cupboard"];
+var allPedestals = [];
+var ringInInv = false;
+var allInputs = ["take ring2 east", "store ring1 central", "open central","take ring1 east", "open east"];
 var inputOn = -1;
+
 
 INPUT.addEventListener("keyup", function (event) {
     if (event.keyCode === 13) {
@@ -63,7 +69,7 @@ function doCommand(x) {
                 updateOut("Incorrect usage! Try: " + validCommands[i][4]);
             } else {
                 eval(validCommands[i][3]);
-                console.log("Command!")
+                //console.log("Command!")
             }
         } else { // if it isnt the first command, check the other available commands
             for (var j = 0; j < validCommands[i][1].length; j++) {
@@ -75,11 +81,14 @@ function doCommand(x) {
     }
 }
 
+
 function updateOut(string) {
 
     checkInv();
     OUTPUT.innerHTML = OUTPUT.innerHTML + "</br>" + "> " + string; + "</br></br></br>";
     OUTPUT.scrollTop = OUTPUT.scrollHeight;
+
+    checkThings();
 
 }
 
@@ -88,10 +97,11 @@ function clearOut() {
 }
 
 function help() {
-    var output = "";
+    var output = "<b id='clue'>--- HELP MENU ---</b> </br>" + "<b id='clue'>Please enter commands in lower case!</b> </br>";
     for (var i = 0; i < validCommands.length; i++) {
         output = output + "Command: " + validCommands[i][0] + " | Usage: " + validCommands[i][4] + "</br>";
     }
+    output = output + "</br>";
     return (output);
 }
 
@@ -116,7 +126,7 @@ function examine(x) {
         for (var k = 0; k < allRooms[i].storage.length; k++) {
 
             if (x == allRooms[i].storage[k].storageID.toLowerCase() || x == allRooms[i].storage[k].storageName.toLowerCase()) {
-                console.log(allRooms[i].storage[k])
+                //console.log(allRooms[i].storage[k])
                 var toSend = allRooms[i].storage[k].description + " It contains: ";
                 for (var o = 0; o < allRooms[i].storage[k].contains.length; o++) {
                     toSend = toSend + allRooms[i].storage[k].contains[o].objectName + ", ";
@@ -130,33 +140,25 @@ function examine(x) {
 }
 
 function go(x) {
-    console.log(allRooms.length)
+    //console.log(allRooms.length)
+    var x = x.toLowerCase();
 
-}
+    for (var i = 0; i < allRooms.length; i++) {
+        if (allRooms[i].isPlayer == true) {
+            for (var j = 0; j < allRooms[i].connectedRooms.length; j++) {
+                if (allRooms[i].connectedRooms[j][0].roomID == x || allRooms[i].connectedRooms[j][1].toLowerCase() == x) {
+                    allRooms[i].isPlayer = false;
+                    allRooms[i].connectedRooms[j][0].isPlayer = true;
+                    updateOut(allRooms[i].connectedRooms[j][0].description);
+                    console.log(i)
+                    return;
+                } else {
+                    updateOut("This is not a valid direction!");
 
-
-function checkInv() {
-    var toOut = "";
-
-    var p = false;
-
-    for (var j = 0; j < allInInv.length; j++) {
-        console.log(allInInv.length, j);
-        for (var i = 0; i < allObjects.length; i++) {
-
-            console.log("r",allObjects[i], allInInv[j]);
-            if (allObjects[i].isInInventory == false && allObjects[i].objectID == allInInv[j].objectID) {
-                allInInv.splice(j, 1);
+                }
             }
         }
-        toOut = toOut + allInInv[j].objectName + ", ";
     }
-    INVENTORY.innerHTML = "Inventory: " + "</br>" + "<font id='clue'>" + toOut + "</font>";
-};
-
-function addToInv(x) {
-    allInInv.push(x);
-    checkInv();
 }
 
 
@@ -177,6 +179,196 @@ function open(containerID) {
     }
 };
 
+function take(object, container) {
+    console.log(container, object);
+    // first determine if the object is in a container or a room
+    object = object.toLowerCase();
+    container = container.toLowerCase();
+
+    for (var i = 0; i < allObjects.length; i++) {
+        // if allObjects == object, then we know what object we're dealing with here
+        if (allObjects[i].objectID.toLowerCase() == object || allObjects[i].objectName.toLowerCase() == object) {
+            // get THE object
+            var Object = allObjects[i];
+
+            if (Object.isInContainer[0] == false && Object.isInInventory == false) {
+
+                if (Object.isInContainer[1] != null) {
+                    for (var l = 0; l < Object.isInContainer[1].contains.length; l++) {
+                        if (Object.isInContainer[1].contains[l] == Object) {
+
+                            Object.isInContainer[1].contains.splice(l, 1);
+                            addToInv(Object);
+                        }
+                    }
+                } else {
+                    updateOut("This room doesn't have that item!")
+                }
+
+                Object.isInContainer = [false, null];
+
+            } else if (Object.isInContainer[0] == true && Object.isInInventory == false) { // for containers
+                
+
+                for (var j = 0; j < allContainers.length; j++) {
+                    console.log("h", allContainers[j])
+                    var Container = allContainers[j];
+                    if (Container.storageID.toLowerCase() == container || Container.storageName.toLowerCase() == container) {
+                        // then we have the a valid Container!
+                        Container = allContainers[j];
+
+                        if (room2.isPlayer == true) {
+                            for (var m = 0; m < allPedestals.length; m++) {
+                                if (Container.storageID = allPedestals[m].storageID) {
+                                    if (ringInInv == false) {
+
+                                        // then take it
+                                        // should also check if the object is 'top' of the container
+                                        console.log(Container.contains[Container.contains.length - 1], Object)
+                                        if (Container.contains[Container.contains.length - 1] == Object && Container.isOpen == true) {
+                                            Container.contains.splice(l, 1);
+                                            addToInv(Object);
+                                            ringInInv = true;
+                                        } else {
+                                            updateOut("Make sure the container is open & you're taking the top ring!")
+                                        }
+
+                                        return;
+
+                                    }
+
+                                    updateOut("You already have a ring!");
+                                    return;
+                                }
+
+
+                            }
+                        }
+
+                        for (var l = 0; l < Container.contains.length; l++) {
+                            if (Container.contains[l] == Object && Container.isOpen == true) {
+                                Container.contains.splice(l, 1);
+                                addToInv(Object);
+                            } else {
+                                updateOut("This container doesn't have that item!")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+function addToInv(x) {
+    //console.log("y", x);
+
+    var toSend = "You take the " + x.objectName + ".";
+    x.isInInventory = true;
+    updateOut(toSend);
+    allInInv.push(x);
+    checkInv();
+}
+
+function checkInv() {
+    var toOut = "";
+
+    var p = false;
+
+    for (var j = 0; j < allInInv.length; j++) {
+        //console.log(allInInv.length, j);
+        for (var i = 0; i < allObjects.length; i++) {
+
+            //console.log("r",allObjects[i], allInInv[j]);
+            if (allObjects[i].isInInventory == false && allObjects[i].objectID == allInInv[j].objectID) {
+                allInInv.splice(j, 1);
+            }
+        }
+        toOut = toOut + allInInv[j].objectName + ", ";
+    }
+    INVENTORY.innerHTML = "Inventory: " + "</br>" + "<font id='clue'>" + toOut + "</font>";
+};
+
+function store(object, container) {
+    object = object.toLowerCase();
+    container = container.toLowerCase();
+
+    for (var i = 0; i < allInInv.length; i++) {
+        if (allInInv[i].objectID.toLowerCase() == object || allInInv[i].objectName.toLowerCase() == object) {
+            for (var j = 0; j < allContainers.length; j++) {
+                if (allContainers[j].storageID.toLowerCase() == container || allContainers[j].storageName.toLowerCase() == container) {
+
+                    if (container == "east" || container == "central" || container == "west") {
+                        checkPedestals(allInInv[i], allContainers[j], i);
+                    } else {
+                        var toSend = "You store the " + allInInv[i].objectName + " in the " + allContainers[j].storageName;
+                        updateOut(toSend);
+
+                        allContainers[j].contains.push(allInInv[i]);
+                        console.log(allContainers[j])
+                        allInInv.splice(i, 1);
+                    }
+                    checkInv();
+                }
+            }
+        }
+    }
+}
+
+function checkPedestals(object, pedestal, x) {
+
+    console.log(object, pedestal, pedestal.contains.length);
+    
+    if (pedestal.contains.length >= 1) {
+        var t = true;
+        
+
+        for (var i = 0; i < object.isBiggerThan.length; i++) {
+            for (var j = 0; j < pedestal.contains.length; j++) {
+                
+                if (pedestal.contains[j].objectID == object.isBiggerThan[i].objectID) {
+                    // then the container contains a smaller ring, cant store
+                    t = false;
+                }
+            }
+        }
+
+        if (t == true) {
+            console.log("t");
+            // then store
+            var toSend = "You store the " + object.objectName + " in the " + pedestal.storageName;
+            updateOut(toSend);
+
+            ringInInv = false;
+
+            allContainers[x].contains.push(object);
+            object.isInContainer[1] = pedestal;
+            object.isInInventory = false;
+            pedestal.contains.push(object);
+            allInInv.splice(x, 1);
+
+        } else {
+            updateOut("You cannot place a bigger ring on a smaller ring!")
+        }
+
+    } else {
+        console.log("normal")
+        var toSend = "You store the " + object.objectName + " in the " + pedestal.storageName;
+        updateOut(toSend);
+
+        ringInInv = false;
+
+        allContainers[x].contains.push(object);
+        object.isInContainer[1] = pedestal;
+        object.isInInventory = false;
+        pedestal.contains.push(object);
+        allInInv.splice(x, 1);
+
+    }
+    checkInv();
+}
+
+
 function close(containerID) {
     containerID = containerID.toLowerCase();
     for (var i = 0; i < allContainers.length; i++) {
@@ -192,47 +384,25 @@ function close(containerID) {
     }
 };
 
-function take(object, container) {
-    console.log(container);
-    for (var i = 0; i < allRooms.length; i++) {
-        if (allRooms[i].isPlayer == true) {
-            console.log(allRooms[i].storage)
-            for (var j = 0; j < allRooms[i].storage.length; j++) {
-                if (allRooms[i].storage[j].contains != null) {
-                    console.log("here")
-                    for (var k = 0; k < allRooms[i].storage[j].contains.length; k++) {
-                        if (
-                            allRooms[i].storage[j].isOpen == true
-                            &&
-                            (allRooms[i].storage[j].storageID.toLowerCase() == container || allRooms[i].storage[j].storageName.toLowerCase() == container)
-                            &&
-                            (allRooms[i].storage[j].contains[k].objectID.toLowerCase() == object || allRooms[i].storage[j].contains[k].objectName.toLowerCase() == object))
-                        {
-                            allRooms[i].storage[j].contains[k] == true;
-                            var toSend = "You take the " + object + ".";
-                            
-                            allRooms[i].storage[j].contains[k].isInInventory = true;
-                            allRooms[i].storage[j].contains[k].isInContainer = [false, allRooms[i].roomID];
-                            
+var pedestalsDone = false;
+var teaDone = false;
 
-                            addToInv(allRooms[i].storage[j].contains[k]);
-                            allRooms[i].storage[j].contains.splice(k, 1)
-                            updateOut(toSend);
-                        } else {
+function checkThings() {
 
-                            var subOne = allRooms[i].storage[j].contains[k].objectID.toLowerCase() == object;
-                            var subTwo = allRooms[i].storage[j].contains[k].objectName.toLowerCase() == object;
-
-                        }
-                    }
-                }
-                
-            }
-
-        }
+    if (allPedestals[2].contains.length == 4 && pedestalsDone == false) {
+        // then pedestals done!
+        updateOut("You hear a click from the door to the East")
+        pedestalsDone = true;
     }
 
-};
+    var teacup = allObjects[2];
+    var special = teacup.Commands.special;
+    if (special[0] == true && special[1] == true && special[2] == true && special[3] == true && teaDone == false) {
+        // then tea is done
+        updateOut("");
+        teaDone = true;
+    }
+}
 
 function use(objectID1, objectID2) {
 
@@ -251,9 +421,7 @@ function use(objectID1, objectID2) {
                     // if the 2nd item is in the inventory,
                     for (var k = 0; k < object1.Commands.use.length; k++) {
                         // check through the objects commands to see if the 2nd object is valid
-                        //console.log(object1.Commands.use[k], k)
-                        //console.log("test", object1.Commands.use[k], objectID2)
-                        console.log(object1, object2)
+                        console.log("b", object1.Commands.use)
                         if (object1.Commands.use[k].objectID.toLowerCase() == objectID2 || object1.Commands.use[k].objectName.toLowerCase() == objectID2) {
                             return (allInInv[i].Commands.useCode());
                         } 
@@ -268,6 +436,20 @@ function use(objectID1, objectID2) {
 function fixObjects() {
     // for all objects
     for (var i = 0; i < allObjects.length; i++) {
+
+        if (allObjects[i].objectID == "ring1") {
+            allObjects[i].isBiggerThan = [];
+        }
+        else if (allObjects[i].objectID == "ring2") {
+            allObjects[i].isBiggerThan = [allObjects[i + 1]];
+        }
+        else if (allObjects[i].objectID == "ring3") {
+            allObjects[i].isBiggerThan = [allObjects[i + 1], allObjects[i + 2]];
+        }
+        else if (allObjects[i].objectID == "ring4") {
+            allObjects[i].isBiggerThan = [allObjects[i + 1], allObjects[i + 2], allObjects[i + 3]];
+        }
+
         for (var k = 0; k < allObjects.length; k++) {
 
             if (allObjects[i].Commands.use[0] != null && typeof allObjects[i].Commands.use[0] != "object" ) {
@@ -280,11 +462,13 @@ function fixObjects() {
                 }
             }
         }
-        
 
         if (allObjects[i].isInContainer[0] == true) {
             for (var j = 0; j < allContainers.length; j++) {
                 if (allContainers[j].storageID == allObjects[i].isInContainer[1]) {
+                    
+                    allObjects[i].isInContainer[1] = allContainers[j];
+                    console.log(allObjects[i].isInContainer[1])
                     allContainers[j].contains.push(allObjects[i]);
                 }
             }
@@ -292,11 +476,23 @@ function fixObjects() {
 
         if (allObjects[i].isInContainer[0] == false) {
             for (var m = 0; m < allRooms.length; m++) {
-                console.log("m", allRooms[m])
-                console.log("m2", allObjects[i].isInContainer[1])
                 if (allObjects[i].isInContainer[1] == allRooms[m].roomID) {
+                    allObjects[i].isInContainer[1] = allRooms[m];
                     allRooms[m].contains.push(allObjects[i]);
-                    console.log("test")
+                }
+            }
+        }
+    }
+}
+
+function fixRooms() {
+    for (var i = 0; i < allRooms.length; i++) {
+        for (var j = 0; j < allRooms[i].connectedRooms.length; j++) {
+            for (var o = 0; o < allRooms.length; o++) {
+                //console.log(allRooms[i].connectedRooms[j][0], allRooms[0].roomID)
+                if (allRooms[i].connectedRooms[j][0] == allRooms[o].roomID) {
+                    allRooms[i].connectedRooms[j][0] = allRooms[o];
+                    //console.log(allRooms[i].connectedRooms)
                 }
             }
         }
@@ -324,7 +520,6 @@ class Storage {
         allContainers.push(this);
 
     }
-
 }
 
 class Object {
@@ -366,7 +561,6 @@ class Object {
             this.Commands.use[0] = this.Commands.use[0][0];
         }
     }
-
 };
 
 class Room {
@@ -394,7 +588,6 @@ class Room {
             window[objects[i][0]] = new Object(objects[i][0], objects[i][1], objects[i][2], objects[i][3], objects[i][4], objects[i][5], roomID);
         };
     };
-
 };
  
 
@@ -402,17 +595,15 @@ class Room {
 var room1 = new Room(
     "room1",
     `
-You awaken in a <font id="clue">room</font>.
-</br></br>
 The Eastern side of the room resembles a Kitchen. 
 </br></br>
 A counter spreads the height of the room;
-it has 2 faucets inset, as well as a <font id="clue">cupboard</font>. A <font <font id="clue">Tea Cup</font> is on the countertop.
+it has a <font id="clue">Faucet</font> inset, as well as a <font id="clue">Cupboard</font>. A <font <font id="clue">Teacup</font> is on the countertop.
 </br></br>
-There is a <font id="clue">Door</font> to the <font id="clue">North</font>.
+There is a door to the <font id="clue">North</font>.
    `,    
     true,
-    [["room2", "North"]]
+    [["room2", "North", false]]
     ,
 
     // objects = str objectID, str objectName, str description,  bool isInInventory, str containerID, array okCommands,
@@ -437,7 +628,7 @@ There is a <font id="clue">Door</font> to the <font id="clue">North</font>.
             ]
         ],
 
-        ["Teacup1", "Teacup", "This is a tea cup.", false, null,
+        ["Teacup1", "Teacup", "This is a tea cup. It needs Milk, Sugar, Water, and a Teabag.", false, null,
             // has milk , has teabag, has water, has sugar
             [
                 [false, false, false, false],
@@ -451,7 +642,7 @@ There is a <font id="clue">Door</font> to the <font id="clue">North</font>.
             [
                 [null],
                 false,
-                ["Teacup1", "Water1.isInInventory = false; Teacup1.Commands.special[2] = true; updateOut('You pour the water into the teacup.')"],
+                [["Teacup1", "Water1.isInInventory = false; Teacup1.Commands.special[2] = true; updateOut('You pour the water into the teacup.')"]],
                 [null]
             ]
         ],
@@ -477,14 +668,28 @@ There is a <font id="clue">Door</font> to the <font id="clue">North</font>.
 var room2 = new Room(
 
     "room2",
-    "Inside this room are 3 pedestals, an Eastern Pedestal, a Central Pedestal, and a Western Pedestal.",
+    "Inside this room are 3 pedestals, a Western Pedestal, a Central Pedestal, and an Eastern Pedestal. There is a piece of paper on the floor.",
     false,
-    [["room1", "South"]]
+    [["room1", "South"], ["room4", "North"]]
     ,
 
     // objects = str objectID, str objectName, str description,  bool inInventory, str containerID, array okCommands,
     [
-        ["Ring1", "Smallest Ring", "This room is the smallest of the Four Rings.", false, "Pedestal1",
+
+        ["Paper1", "Paper",
+            `<b id='clue'>RULES</b></br> You must move all of the rings from the Western Pedestal to the Eastern Pedestal - one at a time.</br>
+            Refer to the Pedestals as "west", "central", and "east".
+            I recommend you open each Pedestal and leave them open whilst completing the puzzle.
+        `,
+            false, null,
+            [
+            [null],
+            false,
+            [null],
+            [null]
+            ]
+        ],
+        ["Ring4", "Ring4", "4/4: This ring is the largest of the Four Rings.", false, "Pedestal1",
             [// [[special], take, [use objects], [opens doors]]
                 [null],
                 false,
@@ -492,7 +697,7 @@ var room2 = new Room(
                 [null]
             ]
         ],
-        ["Ring2", "Smallest Ring", "This room is the smallest of the Four Rings.", false, "Pedestal1",
+        ["Ring3", "Ring3", "3/4: This room is the third of the Four Rings.", false, "Pedestal1",
             [// [[special], take, [use objects], [opens doors]]
                 [null],
                 false,
@@ -500,7 +705,7 @@ var room2 = new Room(
                 [null]
             ]
         ],
-        ["Ring3", "Smallest Ring", "This room is the smallest of the Four Rings.", false, "Pedestal1",
+        ["Ring2", "Ring2", "2/4: This room is the smallest of the Four Rings.", false, "Pedestal1",
             [// [[special], take, [use objects], [opens doors]]
                 [null],
                 false,
@@ -508,7 +713,7 @@ var room2 = new Room(
                 [null]
             ]
         ],
-        ["Ring4", "Largest Ring", "This ring is the largest of the Four Rings.", false, "Pedestal1",
+        ["Ring1", "Ring1", "1/4: This room is the smallest of the Four Rings.", false, "Pedestal1",
             [// [[special], take, [use objects], [opens doors]]
                 [null],
                 false,
@@ -520,11 +725,17 @@ var room2 = new Room(
 
     // storage = storageID, storageName, open, locked, [itemIDs]
     [
-        ["Pedestal1", "Eastern Pedestal", true, false, []],
-        ["Pedestal2", "Central Pedestal", true, false, []]
+        ["Pedestal1", "West", true, false, []],
+        ["Pedestal2", "Central", true, false, []],
+        ["Pedestal3", "East", true, false, []]
     ]
 
 );
 
+allPedestals.push(room2.storage[0]);
+allPedestals.push(room2.storage[1]);
+allPedestals.push(room2.storage[2]);
+
 checkInv();
 fixObjects();
+fixRooms();
